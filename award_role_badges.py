@@ -31,9 +31,6 @@ ASSUMPTIONS
 -----------
 - The master file and log file paths are shared with transform_badges.py.
 - Header is on HEADER_ROW (1-based) of the MASTERLIST_SHEET sheet.
-- "Skills Area" contains the badge area name WITHOUT the level in parentheses
-  (e.g. "On-the-Job Training", not "On-the-Job Training (Proficient)").
-  Matching is case-insensitive and strips surrounding whitespace.
 - A user is identified by their (lowercased, stripped) Email address.
 - "Date of Award" values are in "DD-MMM-YY" format (as written by
   transform_badges.py).  Other parseable formats also work.
