@@ -34,10 +34,10 @@ ASSUMPTIONS
 # CONFIG  ← edit these four paths before running
 # ─────────────────────────────────────────────────────────────────────────────
 
-INPUT_FOLDER     = r"C:\Users\GaoMing\Desktop\Python\badge_automation\incoming"           # folder containing input CSVs
-PROCESSED_FOLDER = r"C:\Users\GaoMing\Desktop\Python\badge_automation\processed"       # CSVs are moved here after processing
-MASTER_FILE      = r"C:\Users\GaoMing\Desktop\Python\badge_automation\mock_master_list.xlsx"  # master Excel tracker file
-LOG_FILE         = r"C:\Users\GaoMing\Desktop\Python\badge_automation\transform_log.csv" # append-only log
+INPUT_FOLDER     = r"C:\Users\incoming"           # folder containing input CSVs
+PROCESSED_FOLDER = r"C:\Users\processed"       # CSVs are moved here after processing
+MASTER_FILE      = r"C:\Users\mock_master_list.xlsx"  # master Excel tracker file
+LOG_FILE         = r"C:\Users\transform_log.xlsx" # append-only log
 
 # Name of the sheet inside MASTER_FILE where rows are appended
 MASTERLIST_SHEET = "Masterlist"
@@ -128,7 +128,7 @@ MONTH_ABBR = [
 # ─────────────────────────────────────────────────────────────────────────────
  
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,
     format="%(asctime)s  %(levelname)-8s  %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
@@ -137,18 +137,43 @@ logger = logging.getLogger(__name__)
  
 def _append_log(file: str, timestamp: str, filename: str,
                 rows_added: int, status: str, detail: str = "") -> None:
-    """Append a single-line CSV record to the log file."""
-    file_exists = os.path.isfile(file)
-    with open(file, "a", encoding="utf-8", newline="") as fh:
-        if not file_exists:
-            fh.write("Timestamp,FileName,RowsAdded,Status,Detail\n")
-        # Escape commas/newlines inside fields
-        def _esc(v: str) -> str:
-            return f'"{v}"' if ("," in v or "\n" in v or '"' in v) else v
-        fh.write(
-            f"{_esc(timestamp)},{_esc(filename)},"
-            f"{rows_added},{_esc(status)},{_esc(detail)}\n"
-        )
+    """Append one row to the Excel log file.
+ 
+    Uses openpyxl to read-then-append, so the file is a proper .xlsx with
+    no encoding or line-ending issues.  Creates the file with a styled
+    header row if it does not exist yet.
+    """
+    from openpyxl.styles import Font, PatternFill, Alignment as XlAlignLog
+ 
+    LOG_HEADERS = ["Timestamp", "File Name", "Rows Added", "Status", "Detail"]
+    new_row     = [timestamp, filename, rows_added, status, detail]
+ 
+    if os.path.isfile(file):
+        wb = load_workbook(file)
+        ws = wb.active
+    else:
+        # Create fresh workbook with a formatted header row
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Log"
+        ws.append(LOG_HEADERS)
+ 
+        # Bold + light-blue header
+        header_fill = PatternFill("solid", fgColor="BDD7EE")
+        for cell in ws[1]:
+            cell.font      = Font(bold=True)
+            cell.fill      = header_fill
+            cell.alignment = XlAlignLog(horizontal="center")
+ 
+        # Freeze header row so it stays visible while scrolling
+        ws.freeze_panes = "A2"
+ 
+        # Set sensible column widths
+        for col_letter, width in zip("ABCDE", [22, 52, 12, 12, 60]):
+            ws.column_dimensions[col_letter].width = width
+ 
+    ws.append(new_row)
+    wb.save(file)
  
  
 # ─────────────────────────────────────────────────────────────────────────────
@@ -478,15 +503,20 @@ def _append_rows_to_master(path: str, new_rows: pd.DataFrame) -> None:
     centre_cols = {sheet_col[f] for f in centre_field_names if f in sheet_col}
  
     # ── Find the first truly empty row after the data ─────────────────────────
-    # We anchor on the first data column (column 1) only.
-    # Scanning every column risks hitting merged/formatted cells in the title
-    # rows above the header, which would give a wrong "last row" result.
-    last_data_row = HEADER_ROW  # fallback: write immediately after header
+    # Anchor on the "Name" column's actual Excel column number — NOT hardcoded
+    # column 1, because your data may not start in column A.
+    # Fallback chain: Name → Email → first header column found.
+    anchor_col = sheet_col.get("Name") or sheet_col.get("Email") or min(sheet_col.values())
+ 
+    last_data_row = HEADER_ROW  # fallback: no data yet, write right after header
     for r in range(ws.max_row, HEADER_ROW, -1):
-        if ws.cell(row=r, column=1).value is not None:
+        if ws.cell(row=r, column=anchor_col).value is not None:
             last_data_row = r
             break
     next_row = last_data_row + 1
+ 
+    logger.debug("  anchor_col=%d  last_data_row=%d  next_row=%d",
+                 anchor_col, last_data_row, next_row)
  
     # ── Write each new row ────────────────────────────────────────────────────
     for _, data_row in new_rows.iterrows():
@@ -524,9 +554,17 @@ def process_all() -> None:
     # We use read_only mode so the file is not locked during the loop.
     col_index, existing_keys = _read_masterlist_for_dedup(MASTER_FILE)
  
-    # Helper: build a dedup key tuple from a DataFrame row
+    # Helper: build a dedup key tuple from a DataFrame row.
+    # Use row[k] with a try/except — pandas Series supports .get() but it can
+    # silently return None for missing labels; this is explicit and safe.
     def _key(row) -> tuple:
-        return tuple(str(row.get(k, "")).strip().lower() for k in DEDUP_KEY)
+        def _val(k):
+            try:
+                v = row[k]
+                return str(v).strip().lower() if v is not None and str(v).upper() != "NAN" else ""
+            except KeyError:
+                return ""
+        return tuple(_val(k) for k in DEDUP_KEY)
  
     total_added = 0
  
@@ -555,6 +593,14 @@ def process_all() -> None:
             duplicate_count = len(transformed) - len(new_rows)
             if duplicate_count:
                 logger.info("  Skipped %d duplicate row(s) already in master.", duplicate_count)
+                # Log which rows were considered duplicates to help diagnose false positives
+                dupes = transformed[
+                    transformed.apply(_key, axis=1).apply(lambda k: k in existing_keys)
+                ]
+                for _, dr in dupes.iterrows():
+                    logger.debug("    DUPE: %s | %s | %s",
+                                 dr.get("Email","?"), dr.get("Skills Area and Level","?"),
+                                 dr.get("Date of Award","?"))
  
             if new_rows.empty:
                 logger.info("  All rows already exist in master — nothing appended.")
