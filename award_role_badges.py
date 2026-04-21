@@ -19,7 +19,7 @@ For each role badge:
      matches the role badge name (case-insensitive).
   3. If not, append a new row:
        • Name / Email         — copied from the user's existing rows
-       • Training Provider    — "IHRP"
+       • Training Provider    — "Company"
        • Skills Area          — role badge name (without " Role Badge" suffix)
        • Skills Area and Level— full role badge name
        • Badge Level          — "Role Badge"
@@ -47,7 +47,7 @@ MASTER_FILE      = r"C:\Users\GaoMing\Desktop\Python\badge_automation\mock_maste
 LOG_FILE         = r"C:\Users\GaoMing\Desktop\Python\badge_automation\role_badge_log.xlsx"
 MASTERLIST_SHEET = "Masterlist"
 HEADER_ROW       = 3          # 1-based row number of the header in Masterlist
-ROLE_BADGE_PROVIDER = "IHRP"  # Training Provider written on every role badge row
+ROLE_BADGE_PROVIDER = "Company"  # Training Provider written on every role badge row
  
 # ─────────────────────────────────────────────────────────────────────────────
 # ROLE BADGE → REQUIRED SKILLS MAPPING
@@ -56,30 +56,10 @@ ROLE_BADGE_PROVIDER = "IHRP"  # Training Provider written on every role badge ro
 # ─────────────────────────────────────────────────────────────────────────────
  
 ROLE_BADGE_REQUIREMENTS: dict[str, list[str]] = {
-    "Workplace Learning Champion Role Badge": [
-        "On-the-Job Training",
-        "Workplace Coaching",
-    ],
-    "Behavioral Transformation Architect Role Badge": [
-        "Behavioural Design for Business Impact",
-        "Behavioural Change & Influence",
-    ],
-    "Responsible People Manager Role Badge (L1)": [
-        "Workplace Fairness and Inclusivity (Level 1)",
-        "Performance and Transition Management (Level 1)",
-    ],
-    "Responsible People Manager Role Badge (L2)": [
-        "Workplace Fairness and Inclusivity (Level 2)",
-        "Performance and Transition Management (Level 2)",
-    ],
-    "Progressive People Manager Role Badge (L1)": [
-        "Team Engagement Management (Level 1)",
-        "Team Growth & Development (Level 1)",
-    ],
-    "Progressive People Manager Role Badge (L2)": [
-        "Team Engagement Management (Level 2)",
-        "Team Growth & Development (Level 2)",
-        "Workforce & Talent Planning (Level 2)",
+    "Example Role Badge": [
+        "Skills Badge A",
+        "Skills Badge B",
+        "Skills Badge C",
     ],
 }
  
