@@ -40,8 +40,8 @@ ASSUMPTIONS
 # CONFIG  ← must match the paths used in transform_badges.py
 # ─────────────────────────────────────────────────────────────────────────────
  
-MASTER_FILE      = r"C:\Users\GaoMing\Desktop\Python\badge_automation\mock_master_list.xlsx"
-LOG_FILE         = r"C:\Users\GaoMing\Desktop\Python\badge_automation\role_badge_log.xlsx"
+MASTER_FILE      = r"C:\Users\mock_master_list.xlsx"
+LOG_FILE         = r"C:\Users\role_badge_log.xlsx"
 MASTERLIST_SHEET = "Masterlist"
 HEADER_ROW       = 3          # 1-based row number of the header in Masterlist
 ROLE_BADGE_PROVIDER = "Company"  # Training Provider written on every role badge row
