@@ -26,50 +26,29 @@ USAGE
 # =============================================================================
 
 # ── Folders ──────────────────────────────────────────────────────────────────
-INPUT_FOLDER        = r"C:\Users\GaoMing\Desktop\Python\badge_automation\incoming"
-PROCESSED_FOLDER    = r"C:\Users\GaoMing\Desktop\Python\badge_automation\processed"
-TO_DTO_BASE_FOLDER  = r"C:\Users\GaoMing\Desktop\Python\badge_automation\To_DTO"
+INPUT_FOLDER        = r"C:\Users\incoming"
+PROCESSED_FOLDER    = r"C:\Users\processed"
+TO_DTO_BASE_FOLDER  = r"C:\Users\To_DTO"
 
 # ── Files ─────────────────────────────────────────────────────────────────────
-MASTER_FILE         = r"C:\Users\GaoMing\Desktop\Python\badge_automation\mock_master_list.xlsx"
-LOG_FILE            = r"C:\Users\GaoMing\Desktop\Python\badge_automation\pipeline_log.xlsx"
-BADGE_TEMPLATE_FILE = r"C:\Users\GaoMing\Desktop\Python\badge_automation\Badges_Excel_Template.xlsx"
+MASTER_FILE         = r"C:\Users\mock_master_list.xlsx"
+LOG_FILE            = r"C:\Users\pipeline_log.xlsx"
+BADGE_TEMPLATE_FILE = r"C:\Users\Badges_Excel_Template.xlsx"
 
 # ── Master sheet settings ─────────────────────────────────────────────────────
 MASTERLIST_SHEET    = "Masterlist"
 HEADER_ROW          = 3       # 1-based row number of header in Masterlist sheet
 
 # ── Role badge settings ───────────────────────────────────────────────────────
-ROLE_BADGE_PROVIDER = "IHRP"
+ROLE_BADGE_PROVIDER = "company"
 
 # ── Role badge → required skills mapping ─────────────────────────────────────
 # Keys   : role badge name used as the dict key (for internal logic)
 # Values : list of required "Skills Area" values (ALL must be present)
 ROLE_BADGE_REQUIREMENTS: dict[str, list[str]] = {
-    "Workplace Learning Champion Role Badge": [
-        "On-the-Job Training",
-        "Workplace Coaching",
-    ],
-    "Behavioral Transformation Architect Role Badge": [
-        "Behavioural Design for Business Impact",
-        "Behavioural Change & Influence",
-    ],
-    "Responsible People Manager Role Badge (L1)": [
-        "Workplace Fairness and Inclusivity (Level 1)",
-        "Performance and Transition Management (Level 1)",
-    ],
-    "Responsible People Manager Role Badge (L2)": [
-        "Workplace Fairness and Inclusivity (Level 2)",
-        "Performance and Transition Management (Level 2)",
-    ],
-    "Progressive People Manager Role Badge (L1)": [
-        "Team Engagement Management (Level 1)",
-        "Team Growth & Development (Level 1)",
-    ],
-    "Progressive People Manager Role Badge (L2)": [
-        "Team Engagement Management (Level 2)",
-        "Team Growth & Development (Level 2)",
-        "Workforce & Talent Planning (Level 2)",
+    "Example Role Badge": [
+        "Skills Badge A",
+        "Skills Badge B",
     ],
 }
 
