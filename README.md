@@ -29,7 +29,7 @@ PART 1 — Import CSVs
 PART 2 — Award Role Badges
   Read Masterlist  →  find eligible users  →  append role badge rows
 
-PART 3 — Export to To_DTO folder
+PART 3 — Export to To folder
   Fill Badges_Excel_Template.xlsx  +  write combined CSV
   → saved to To/<timestamp>/
 ```
@@ -198,7 +198,7 @@ New rows are appended after the last existing row. No other sheets or existing r
 | Year | 4-digit year, e.g. `2025` |
 | Programme | Course / programme title |
 
-### DTO Excel (`Badges_DTO_<label>_<stamp>.xlsx`)
+### Excel (`Badges_<label>_<stamp>.xlsx`)
 A filled copy of `Badges_Excel_Template.xlsx` with data starting at row 4.
 
 ### Combined CSV (`Combined_<label>_<stamp>.csv`)
