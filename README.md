@@ -1,6 +1,6 @@
 # Badge Automation Pipeline
 
-Automates the end-to-end processing of skills and role badge data — from raw CSV attachments to a formatted master tracker and DTO-ready export files.
+Automates the end-to-end processing of skills and role badge data — from raw CSV attachments to a formatted master tracker and ready export files.
 
 ---
 
@@ -65,9 +65,9 @@ Set up this folder structure on your machine (paths are configured at the top of
 badge_automation/
 ├── incoming/                   ← drop new CSV files here before running
 ├── processed/                  ← CSVs are moved here automatically after processing
-├── To_DTO/
+├── To/
 │   └── 20250422_143012/        ← timestamped folder created each run
-│       ├── Badges_DTO_All_<stamp>.xlsx
+│       ├── Badges_All_<stamp>.xlsx
 │       └── Combined_All_<stamp>.csv
 ├── master_list.xlsx
 ├── Badges_Excel_Template.xlsx
@@ -85,7 +85,7 @@ All settings are at the **top of `badge_pipeline.py`** — no other file needs e
 # ── Folders ──────────────────────────────────────────────────────────────
 INPUT_FOLDER        = r"C:\...\incoming"
 PROCESSED_FOLDER    = r"C:\...\processed"
-TO_DTO_BASE_FOLDER  = r"C:\...\To_DTO"
+TO_DTO_BASE_FOLDER  = r"C:\...\To"
 
 # ── Files ─────────────────────────────────────────────────────────────────
 MASTER_FILE         = r"C:\...\master_list.xlsx"
@@ -132,7 +132,7 @@ python badge_pipeline.py
 ```
 
 5. Check the console output and `pipeline_log.xlsx` for results.
-6. Collect the generated files from `To_DTO/<timestamp>/`.
+6. Collect the generated files from `To/<timestamp>/`.
 
 ---
 
@@ -158,15 +158,6 @@ Full run (import + role badges + export):
 
 Role badges are awarded automatically when a user holds **all** required skill badges. The mapping is defined in `ROLE_BADGE_REQUIREMENTS` at the top of `badge_pipeline.py`:
 
-| Role Badge | Required Skill Badges |
-|------------|----------------------|
-| Workplace Learning Champion | On-the-Job Training + Workplace Coaching |
-| Behavioral Transformation Architect | Behavioural Design for Business Impact + Behavioural Change & Influence |
-| Responsible People Manager (L1) | Workplace Fairness and Inclusivity (Level 1) + Performance and Transition Management (Level 1) |
-| Responsible People Manager (L2) | Workplace Fairness and Inclusivity (Level 2) + Performance and Transition Management (Level 2) |
-| Progressive People Manager (L1) | Team Engagement Management (Level 1) + Team Growth & Development (Level 1) |
-| Progressive People Manager (L2) | Team Engagement Management (Level 2) + Team Growth & Development (Level 2) + Workforce & Talent Planning (Level 2) |
-
 To add a new role badge, add an entry to `ROLE_BADGE_REQUIREMENTS` — no other changes needed.
 
 ---
@@ -179,11 +170,11 @@ The script accepts column names flexibly (case-insensitive, common aliases recog
 |--------|---------|
 | Identifier (Email_Address) | `john.doe@company.com` |
 | Preferred Name(Name to appear on badge) | `John Doe` |
-| Name of Skills Badge | `Future of Work Architect (Proficient)` |
-| Skills Badge Level | `Proficient` |
-| Course / Programme Title | `Effective Design & Delivery...` |
+| Name of Skills Badge | `Example Skills Badge` |
+| Skills Badge Level | `Basic` |
+| Course / Programme Title | `Effective Design` |
 | Date of Course Completion | `22-Aug-25` |
-| Training Provider | `Ngee Ann Polytechnic` |
+| Training Provider | `Example Company` |
 
 Accepted date formats: `22-Aug-25`, `22/08/2025`, `2025-08-22`, Excel serial numbers, and other common variants.
 
@@ -199,9 +190,9 @@ New rows are appended after the last existing row. No other sheets or existing r
 | Name | Learner's preferred name |
 | Email | Upper-cased email address |
 | Training Provider | As provided in the CSV |
-| Skills Area | Badge name without level, e.g. `Future of Work Architect` |
-| Skills Area and Level | Full badge name, e.g. `Future of Work Architect (Proficient)` |
-| Badge Level | `Basic` / `Proficient` / `Advanced` / `Role Badge` |
+| Skills Area | Badge name without level |
+| Skills Area and Level | Full badge name |
+| Badge Level | `Basic` / `Advanced` |
 | Date of Award | `D-MMM-YY` format, e.g. `22-Aug-25` |
 | Month | Numeric month, e.g. `8` |
 | Year | 4-digit year, e.g. `2025` |
