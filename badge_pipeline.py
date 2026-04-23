@@ -42,6 +42,13 @@ HEADER_ROW          = 3       # 1-based row number of header in Masterlist sheet
 # ── Role badge settings ───────────────────────────────────────────────────────
 ROLE_BADGE_PROVIDER = "company"
 
+# ── Processing mode ───────────────────────────────────────────────────────────
+PROCESS_MODE = "both"   # "skills" | "roles" | "both"
+
+# ── Export split mode ─────────────────────────────────────────────────────────
+# EXPORT_MODE controls how rows are grouped into output files:
+EXPORT_MODE = "combined"   # "combined" | "split"
+
 # ── Role badge → required skills mapping ─────────────────────────────────────
 # Keys   : role badge name used as the dict key (for internal logic)
 # Values : list of required "Skills Area" values (ALL must be present)
@@ -737,117 +744,85 @@ def run_part2(sheet_col: dict[str, int]) -> list[pd.DataFrame]:
 # PART 3 — EXPORT TO DTO FOLDER
 # =============================================================================
 
-# Column mapping: master WRITE_COLUMNS field → DTO template column header
 DTO_TEMPLATE_COLUMNS = [
-    "ID",
-    "Document Name",
-    "Issued On",
-    "Expires On",
-    "Admission Date",
-    "Graduation Date",
-    "Attainment Date",
-    "Recipient Name",
-    "Recipient Email",
-    "Recipient NRIC",
-    "Recipient Student ID",
-    "Training Provider",
-    "Programme",
+    "ID", "Document Name", "Issued On", "Expires On",
+    "Admission Date", "Graduation Date", "Attainment Date",
+    "Recipient Name", "Recipient Email", "Recipient NRIC",
+    "Recipient Student ID", "Training Provider", "Programme",
 ]
 
 
 def _master_row_to_dto(row: dict) -> dict:
     """Convert one WRITE_COLUMNS row dict to a DTO template row dict."""
     return {
-        "ID":                  "",
-        "Document Name":       row.get("Skills Area and Level", ""),
-        "Issued On":           _format_date_dto(row.get("Date of Award", "")),
-        "Expires On":          "",
-        "Admission Date":      "",
-        "Graduation Date":     "",
-        "Attainment Date":     "",
-        "Recipient Name":      row.get("Name", ""),
-        "Recipient Email":     row.get("Email", ""),
-        "Recipient NRIC":      "",
+        "ID":                   "",
+        "Document Name":        row.get("Skills Area and Level", ""),
+        "Issued On":            _format_date_dto(row.get("Date of Award", "")),
+        "Expires On":           "",
+        "Admission Date":       "",
+        "Graduation Date":      "",
+        "Attainment Date":      "",
+        "Recipient Name":       row.get("Name", ""),
+        "Recipient Email":      row.get("Email", ""),
+        "Recipient NRIC":       "",
         "Recipient Student ID": "",
-        "Training Provider":   row.get("Training Provider", ""),
-        "Programme":           row.get("Programme", ""),
+        "Training Provider":    row.get("Training Provider", ""),
+        "Programme":            row.get("Programme", ""),
     }
 
 
-def run_part3(
-    part1_master_rows: list[pd.DataFrame],
-    part2_role_rows:   list[pd.DataFrame],
-) -> None:
+def _safe_filename(name: str) -> str:
+    """Strip characters that are illegal in Windows filenames."""
+    return re.sub(r'[\/:*?"<>|]', "_", name).strip()
+
+
+def _write_dto_excel(rows: list[dict], out_folder: str,
+                     stamp: str, label: str) -> str:
     """
-    PART 3: export outputs to a timestamped To_DTO folder:
-      1. Copy Badges_Excel_Template.xlsx and fill it with all new rows.
-      2. Write a combined CSV of all new rows (original CSV column format
-         for skill-badge rows, master format for role-badge rows).
+    Copy the template, fill it with *rows* (list of WRITE_COLUMNS dicts),
+    save to out_folder, and return the saved path.
+    *label* is used in the filename (e.g. "All" or a badge name).
     """
-    logger.info("=" * 60)
-    logger.info("PART 3 — Export to DTO folder")
-    logger.info("=" * 60)
+    safe_label = _safe_filename(label)
+    dest = os.path.join(out_folder, f"Badges_DTO_{safe_label}_{stamp}.xlsx")
+    shutil.copy2(BADGE_TEMPLATE_FILE, dest)
 
-    all_master_dfs = part1_master_rows + part2_role_rows
-    if not any(not df.empty for df in all_master_dfs):
-        logger.info("No new rows to export — skipping Part 3.")
-        _append_log(_ts(), "Part3", "export", 0, "SKIPPED", "No new rows")
-        return
+    wb  = load_workbook(dest)
+    ws  = wb.active
 
-    # ── Create timestamped output folder ─────────────────────────────────────
-    folder_stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    out_folder   = os.path.join(TO_DTO_BASE_FOLDER, folder_stamp)
-    os.makedirs(out_folder, exist_ok=True)
-    logger.info("Output folder: %s", out_folder)
-
-    # ── 1. Fill and save the DTO Excel template ───────────────────────────────
-    template_dest = os.path.join(out_folder,
-                                 f"Badges_DTO_{folder_stamp}.xlsx")
-    shutil.copy2(BADGE_TEMPLATE_FILE, template_dest)
-    logger.info("Template copied → %s", os.path.basename(template_dest))
-
-    wb_dto = load_workbook(template_dest)
-    ws_dto = wb_dto.active
-
-    # Read template header row (row 3) to build column → Excel-column-number map
-    template_hdr = {
+    # Build header map from template row 3
+    hdr = {
         str(cell.value).strip(): cell.column
-        for cell in ws_dto[3]
+        for cell in ws[3]
         if cell.value is not None
     }
 
-    # Find the last row in the template that has data (anchor on "Document Name")
-    doc_name_col = template_hdr.get("Document Name", 2)
-    dto_next_row = 3  # start right after header if sheet is empty
-    for r in range(ws_dto.max_row, 3, -1):
-        if ws_dto.cell(row=r, column=doc_name_col).value is not None:
-            dto_next_row = r + 1
+    # Find first empty data row (anchor on "Document Name" col)
+    doc_col  = hdr.get("Document Name", 2)
+    next_row = 4  # default: row 4 is first data row
+    for r in range(ws.max_row, 3, -1):
+        if ws.cell(row=r, column=doc_col).value is not None:
+            next_row = r + 1
             break
-    else:
-        dto_next_row = 4  # header is row 3, data starts at row 4
 
-    total_dto_rows = 0
-    for df in all_master_dfs:
-        for _, mrow in df.iterrows():
-            dto_row = _master_row_to_dto(dict(mrow))
-            for col_name, col_num in template_hdr.items():
-                val = dto_row.get(col_name, "")
-                ws_dto.cell(row=dto_next_row, column=col_num,
-                            value=val if val != "" else None)
-            dto_next_row   += 1
-            total_dto_rows += 1
+    for row_dict in rows:
+        dto = _master_row_to_dto(row_dict)
+        for col_name, col_num in hdr.items():
+            val = dto.get(col_name, "")
+            ws.cell(row=next_row, column=col_num,
+                    value=val if val != "" else None)
+        next_row += 1
 
-    wb_dto.save(template_dest)
-    logger.info("DTO template filled: %d row(s) written.", total_dto_rows)
-    _append_log(_ts(), "Part3", os.path.basename(template_dest),
-                total_dto_rows, "SUCCESS", f"Saved to {out_folder}")
+    wb.save(dest)
+    return dest
 
-    # ── 2. Combined CSV export ────────────────────────────────────────────────
-    # Skill-badge rows use original CSV column names (from Part 1 dto_rows).
-    # Role-badge rows are converted from master format using a compatible layout.
-    csv_dest = os.path.join(out_folder, f"Combined_New_Rows_{folder_stamp}.csv")
 
-    # We build a unified CSV with a superset of columns
+def _write_combined_csv(rows: list[dict], out_folder: str,
+                        stamp: str, label: str) -> str:
+    """Write rows as a CSV in the original incoming-CSV column format."""
+    safe_label = _safe_filename(label)
+    dest = os.path.join(out_folder, f"Combined_{safe_label}_{stamp}.csv")
+
     CSV_COLUMNS = [
         "Identifier (Email_Address)",
         "Preferred Name(Name to appear on badge)",
@@ -857,63 +832,149 @@ def run_part3(
         "Date of Course Completion",
         "Training Provider",
     ]
+    records = []
+    for r in rows:
+        records.append({
+            "Identifier (Email_Address)":              r.get("Email", ""),
+            "Preferred Name(Name to appear on badge)": r.get("Name", ""),
+            "Name of Skills Badge":                    r.get("Skills Area and Level", ""),
+            "Badge Level":                             r.get("Badge Level", ""),
+            "Course / Programme Title":                r.get("Programme", ""),
+            "Date of Course Completion":               r.get("Date of Award", ""),
+            "Training Provider":                       r.get("Training Provider", ""),
+        })
+    pd.DataFrame(records, columns=CSV_COLUMNS).to_csv(
+        dest, index=False, encoding="utf-8-sig"
+    )
+    return dest
 
-    combined_records = []
 
-    # Part 1 rows (already in dto format via _transform_csv)
-    # Re-derive from master rows since we only stored master format above
-    for df in part1_master_rows:
+def run_part3(
+    part1_master_rows: list[pd.DataFrame],
+    part2_role_rows:   list[pd.DataFrame],
+) -> None:
+    """
+    PART 3 — Export to DTO folder.
+
+    Respects PROCESS_MODE (which rows to include) and EXPORT_MODE (how to split).
+
+    PROCESS_MODE:
+      "skills" → export only Part 1 (skill badge) rows
+      "roles"  → export only Part 2 (role badge) rows
+      "both"   → export all rows
+
+    EXPORT_MODE:
+      "combined" → one Excel + one CSV with all selected rows
+      "split"    → one Excel + one CSV per unique "Skills Area and Level" value
+    """
+    logger.info("=" * 60)
+    logger.info("PART 3 — Export to DTO folder  (process=%s  export=%s)",
+                PROCESS_MODE, EXPORT_MODE)
+    logger.info("=" * 60)
+
+    # Select which rows to export based on PROCESS_MODE
+    if PROCESS_MODE == "skills":
+        export_dfs = part1_master_rows
+    elif PROCESS_MODE == "roles":
+        export_dfs = part2_role_rows
+    else:  # "both"
+        export_dfs = part1_master_rows + part2_role_rows
+
+    # Flatten to a list of plain dicts
+    all_rows: list[dict] = []
+    for df in export_dfs:
         for _, r in df.iterrows():
-            combined_records.append({
-                "Identifier (Email_Address)":          r.get("Email", ""),
-                "Preferred Name(Name to appear on badge)": r.get("Name", ""),
-                "Name of Skills Badge":                r.get("Skills Area and Level", ""),
-                "Badge Level":                         r.get("Badge Level", ""),
-                "Course / Programme Title":            r.get("Programme", ""),
-                "Date of Course Completion":           r.get("Date of Award", ""),
-                "Training Provider":                   r.get("Training Provider", ""),
-            })
+            all_rows.append(dict(r))
 
-    # Part 2 rows (role badges)
-    for df in part2_role_rows:
-        for _, r in df.iterrows():
-            combined_records.append({
-                "Identifier (Email_Address)":          r.get("Email", ""),
-                "Preferred Name(Name to appear on badge)": r.get("Name", ""),
-                "Name of Skills Badge":                r.get("Skills Area and Level", ""),
-                "Badge Level":                         r.get("Badge Level", ""),
-                "Course / Programme Title":            r.get("Programme", ""),
-                "Date of Course Completion":           r.get("Date of Award", ""),
-                "Training Provider":                   r.get("Training Provider", ""),
-            })
+    if not all_rows:
+        logger.info("No new rows to export — skipping Part 3.")
+        _append_log(_ts(), "Part3", "export", 0, "SKIPPED", "No new rows")
+        return
 
-    combined_df = pd.DataFrame(combined_records, columns=CSV_COLUMNS)
-    combined_df.to_csv(csv_dest, index=False, encoding="utf-8-sig")
-    logger.info("Combined CSV written: %d row(s) → %s",
-                len(combined_df), os.path.basename(csv_dest))
-    _append_log(_ts(), "Part3", os.path.basename(csv_dest),
-                len(combined_df), "SUCCESS", f"Saved to {out_folder}")
+    # Create timestamped output folder
+    stamp      = datetime.now().strftime("%Y%m%d_%H%M%S")
+    out_folder = os.path.join(TO_DTO_BASE_FOLDER, stamp)
+    os.makedirs(out_folder, exist_ok=True)
+    logger.info("Output folder: %s", out_folder)
 
+    if EXPORT_MODE == "combined":
+        # ── One Excel + one CSV with everything ───────────────────────────
+        xlsx_path = _write_dto_excel(all_rows, out_folder, stamp, "All")
+        csv_path  = _write_combined_csv(all_rows, out_folder, stamp, "All")
 
+        logger.info("Excel written: %s (%d rows)", os.path.basename(xlsx_path), len(all_rows))
+        logger.info("CSV   written: %s (%d rows)", os.path.basename(csv_path),  len(all_rows))
+        _append_log(_ts(), "Part3", os.path.basename(xlsx_path),
+                    len(all_rows), "SUCCESS",
+                    f"mode=combined | {out_folder}")
+        _append_log(_ts(), "Part3", os.path.basename(csv_path),
+                    len(all_rows), "SUCCESS",
+                    f"mode=combined | {out_folder}")
+
+    else:  # "split"
+        # ── One Excel + one CSV per unique badge name ──────────────────────
+        # Group rows by "Skills Area and Level"
+        from collections import defaultdict
+        groups: dict[str, list[dict]] = defaultdict(list)
+        for row in all_rows:
+            badge_name = row.get("Skills Area and Level", "Unknown Badge")
+            groups[badge_name].append(row)
+
+        logger.info("Split mode: %d unique badge(s) → %d file pair(s)",
+                    len(groups), len(groups))
+
+        for badge_name, badge_rows in sorted(groups.items()):
+            xlsx_path = _write_dto_excel(badge_rows, out_folder, stamp, badge_name)
+            csv_path  = _write_combined_csv(badge_rows, out_folder, stamp, badge_name)
+
+            logger.info("  [%s] Excel: %s (%d rows)",
+                        badge_name, os.path.basename(xlsx_path), len(badge_rows))
+            logger.info("  [%s] CSV:   %s (%d rows)",
+                        badge_name, os.path.basename(csv_path),  len(badge_rows))
+            _append_log(_ts(), "Part3", os.path.basename(xlsx_path),
+                        len(badge_rows), "SUCCESS",
+                        f"mode=split | badge={badge_name} | {out_folder}")
+            _append_log(_ts(), "Part3", os.path.basename(csv_path),
+                        len(badge_rows), "SUCCESS",
+                        f"mode=split | badge={badge_name} | {out_folder}")
 # =============================================================================
 # MAIN PIPELINE
 # =============================================================================
 
 def run_pipeline() -> None:
+    valid_process = ("skills", "roles", "both")
+    valid_export  = ("combined", "split")
+    if PROCESS_MODE not in valid_process:
+        raise ValueError(
+            f"PROCESS_MODE must be one of {valid_process}, got {PROCESS_MODE!r}"
+        )
+    if EXPORT_MODE not in valid_export:
+        raise ValueError(
+            f"EXPORT_MODE must be one of {valid_export}, got {EXPORT_MODE!r}"
+        )
+
     logger.info("╔══════════════════════════════════════════════════════════╗")
-    logger.info("║              BADGE PIPELINE — START                     ║")
+    logger.info("║  BADGE PIPELINE — START  (process=%s  export=%s)",
+                PROCESS_MODE, EXPORT_MODE)
     logger.info("╚══════════════════════════════════════════════════════════╝")
 
-    # Read master header once (shared by Part 1 and Part 3)
-    col_map, sheet_col = _read_master_header(MASTER_FILE)
+    _, sheet_col = _read_master_header(MASTER_FILE)
 
-    # ── Part 1 ────────────────────────────────────────────────────────────────
-    part1_master_rows, _part1_dto_rows = run_part1()
+    # ── Part 1: import CSVs (only when mode requires it) ──────────────────────
+    part1_master_rows: list[pd.DataFrame] = []
+    if PROCESS_MODE in ("skills", "both"):
+        part1_master_rows, _ = run_part1()
+    else:
+        logger.info("PROCESS_MODE=%r — skipping Part 1 (CSV import).", PROCESS_MODE)
 
-    # ── Part 2 ────────────────────────────────────────────────────────────────
-    part2_role_rows = run_part2(sheet_col)
+    # ── Part 2: award role badges (only when mode requires it) ────────────────
+    part2_role_rows: list[pd.DataFrame] = []
+    if PROCESS_MODE in ("roles", "both"):
+        part2_role_rows = run_part2(sheet_col)
+    else:
+        logger.info("PROCESS_MODE=%r — skipping Part 2 (role badge check).", PROCESS_MODE)
 
-    # ── Part 3 ────────────────────────────────────────────────────────────────
+    # ── Part 3: export to To_DTO folder ───────────────────────────────────────
     run_part3(part1_master_rows, part2_role_rows)
 
     logger.info("╔══════════════════════════════════════════════════════════╗")
