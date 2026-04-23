@@ -31,7 +31,7 @@ PART 2 — Award Role Badges
 
 PART 3 — Export to To_DTO folder
   Fill Badges_Excel_Template.xlsx  +  write combined CSV
-  → saved to To_DTO/<timestamp>/
+  → saved to To/<timestamp>/
 ```
 
 A single `pipeline_log.xlsx` records every action across all three parts.
@@ -52,7 +52,7 @@ pip install pandas openpyxl
 | File | Description |
 |------|-------------|
 | `master_list.xlsx` | Master badge tracker with a `Masterlist` sheet |
-| `Badges_Excel_Template.xlsx` | DTO upload template (headers on row 3) |
+| `Badges_Excel_Template.xlsx` | Upload template (headers on row 3) |
 | CSV files in `incoming/` | Raw badge data exported from the training system |
 
 ---
@@ -85,7 +85,7 @@ All settings are at the **top of `badge_pipeline.py`** — no other file needs e
 # ── Folders ──────────────────────────────────────────────────────────────
 INPUT_FOLDER        = r"C:\...\incoming"
 PROCESSED_FOLDER    = r"C:\...\processed"
-TO_DTO_BASE_FOLDER  = r"C:\...\To"
+TO_BASE_FOLDER  = r"C:\...\To"
 
 # ── Files ─────────────────────────────────────────────────────────────────
 MASTER_FILE         = r"C:\...\master_list.xlsx"
