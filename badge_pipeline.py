@@ -28,7 +28,7 @@ USAGE
 # ── Folders ──────────────────────────────────────────────────────────────────
 INPUT_FOLDER        = r"C:\Users\incoming"
 PROCESSED_FOLDER    = r"C:\Users\processed"
-TO_DTO_BASE_FOLDER  = r"C:\Users\To_DTO"
+TO_DTO_BASE_FOLDER  = r"C:\Users\To"
 
 # ── Files ─────────────────────────────────────────────────────────────────────
 MASTER_FILE         = r"C:\Users\mock_master_list.xlsx"
@@ -226,7 +226,7 @@ def _format_date_badge(raw) -> tuple[str, str, str]:
 
 
 def _format_date_dto(raw) -> str:
-    """Return date as  'D/M/YYYY 0:00'  for the DTO template."""
+    """Return date as  'D/M/YYYY 0:00'  for the template."""
     dt = _parse_date(raw)
     if dt is None:
         return ""
@@ -600,12 +600,7 @@ def _natural_list(items: list[str]) -> str:
 
 def _derive_role_badge_display(role_badge_name: str) -> tuple[str, str, str]:
     """
-    Given a dict-key role badge name, return:
-      (skills_area_clean, skills_area_and_level, level_tag)
-    e.g. "Workplace Learning Champion Role Badge"
-      → ("Workplace Learning Champion",
-         "Workplace Learning Champion (Role Badge)",
-         "Role Badge")
+    Given a dict-key role badge name
     """
     clean = role_badge_name
     for sfx in (" Role Badge (L1)", " Role Badge (L2)", " Role Badge"):
